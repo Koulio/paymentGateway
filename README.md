@@ -1,4 +1,4 @@
 paymentGateway
 ==============
 
-Payment Gateway Swtich
+Payment Gateway Switch
