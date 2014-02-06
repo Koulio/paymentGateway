@@ -1,0 +1,178 @@
+
+import com.payment.model.SrPayRequest;
+import com.payment.model.DeviceProfileType;
+
+import com.srswitch.exception.BusinessException;
+
+//Validating MTI and Processing Code
+rule "ValidateMTIAndProcessingCode"
+	salience 20
+	agenda-group "generalValidation"
+	when
+		$srPayRequest : SrPayRequest( $messageType : MTI , $processCode : processingCode )
+		eval(true)	
+	then
+		 System.out.println("Rule :::: MTI received in request : " + $messageType);
+		
+		//MTI (Message Type Identifiers)
+		int	ADMINISTRATIVE_REQUEST						= 2604;
+ 		int	ADMINISTRATIVE_REQUEST_RESPONSE				= 2614;
+ 		
+		int AUTHORIZATION_REQUEST						= 2100;
+		int  AUTHORIZATION_REQUEST_RESPONSE				= 2110;
+		
+		int  FINANCIAL_PRESENTMENT_REQUEST				= 2200;
+		int  FINANCIAL_PRESENTMENT_REQUEST_RESPONSE		= 2210;
+		
+		//Processing Codes
+		String TERMINAL_REGISTRATION 			= "7S7878";
+		String GET_PRODUCT_LIST 				= "7T7878";
+		String SALES_TRANSACTION 				= "507878";
+		String DEPOSIT_TRANSACTION 				= "5S7878";
+		String BALANCE_ENQUIRY 					= "317878";
+		
+		if($messageType == ADMINISTRATIVE_REQUEST || $messageType == ADMINISTRATIVE_REQUEST_RESPONSE){
+
+			if($processCode.equalsIgnoreCase(TERMINAL_REGISTRATION) || $processCode.equalsIgnoreCase(GET_PRODUCT_LIST) ){
+				 System.out.println("Rule :::: Processing Code : " + $processCode + " for MTI : " + $messageType + " is valid");
+			}else{
+				System.out.println("Rule Error ::::Invalid Processing Code : " + $processCode + " for MTI : " + $messageType);
+				throw new BusinessException("generic.req.invalidProcessCode");
+			}
+			
+		}else if($messageType == FINANCIAL_PRESENTMENT_REQUEST || $messageType == FINANCIAL_PRESENTMENT_REQUEST_RESPONSE){
+		
+			if($processCode.equalsIgnoreCase(SALES_TRANSACTION) || $processCode.equalsIgnoreCase(DEPOSIT_TRANSACTION) ){
+				 System.out.println("Rule :::: Processing Code : " + $processCode + " for MTI : " + $messageType + " is valid");
+			}else{
+				System.out.println("Rule Error ::::Invalid Processing Code : " + $processCode + " for MTI : " + $messageType);
+				throw new BusinessException("generic.req.invalidProcessCode");
+			}
+			
+		}else if($messageType == AUTHORIZATION_REQUEST || $messageType == AUTHORIZATION_REQUEST_RESPONSE){
+			
+			if($processCode.equalsIgnoreCase(BALANCE_ENQUIRY)){
+				 System.out.println("Rule :::: Processing Code : " + $processCode + " for MTI : " + $messageType + " is valid");
+			}else{
+				System.out.println("Rule Error ::::Invalid Processing Code : " + $processCode + " for MTI : " + $messageType);
+				throw new BusinessException("generic.req.invalidProcessCode");
+			}
+		
+		}else{
+			System.out.println("Invalid MTI received in request : " + $messageType);
+			throw new BusinessException("generic.req.invalidMTI");	
+		}
+end
+
+
+/* Validating Auth Token Length */
+rule "ValidateAuthTokenLength"
+	salience 19
+	agenda-group "generalValidation"
+	when
+		$srPayRequest : SrPayRequest($processCode : processingCode )
+		eval(true)
+	then
+		String TERMINAL_REGISTRATION 			= "7S7878";
+		String authToken = $srPayRequest.getAuthToken();
+		if(!$processCode.equalsIgnoreCase(TERMINAL_REGISTRATION) && (authToken == null || authToken.length() < 36)){
+			System.out.println("Rule Error :::: Null RegRequestData received in request");
+			throw new BusinessException("generic.req.noauthtoken");
+		}
+end
+
+
+rule "ValidateTerminalData"
+	salience 18
+	agenda-group "generalValidation"
+	when
+		$srPayRequest : SrPayRequest()
+		eval(true)
+	then
+		if($srPayRequest.getRegRequestData() == null){
+			System.out.println("Rule Error :::: No RegRequestData received in request");
+			throw new BusinessException("generic.req.validation");
+		}else if($srPayRequest.getRegRequestData().getTerminalData() == null){
+			System.out.println("Rule Error :::: No Terminal Data received in request");
+			throw new BusinessException("generic.req.noterminaldata");
+		}
+end
+
+
+rule "ValidateUniqueCode"
+	salience 17
+	agenda-group "generalValidation"
+	when
+		$srPayRequest : SrPayRequest()
+		eval(true)
+	then
+		com.payment.model.TerminalDataType terminalData =  $srPayRequest.getRegRequestData().getTerminalData();
+		if(terminalData.getUniqueCode() == null || terminalData.getUniqueCode().length() == 0){
+			System.out.println("Rule Error :::: No Unique Code received in request");
+			throw new BusinessException("generic.req.notermcode");
+		}
+end
+
+
+rule "ValidateDeviceProfile"
+	salience 16
+	agenda-group "generalValidation"
+	when
+		$srPayRequest : SrPayRequest()
+	then
+		if($srPayRequest.getDeviceProfile() == null){
+			System.out.println("Rule Error :::: No Device Profile received in request");
+			throw new BusinessException("generic.req.nodeviceProfile");
+		}
+end
+
+
+rule "AddDeviceProfileTypeToWorkingMemory"
+	salience 15
+	agenda-group "generalValidation"
+	when
+		$srPayRequest : SrPayRequest( $deviceProfile : deviceProfile )
+		eval(true)
+	then
+		System.out.println("Rule Output :::: Adding DeviceProfile in Working Memory");
+		DeviceProfileType deviceProfile = $deviceProfile;
+		insert(deviceProfile);
+end
+
+
+rule "ValidateMsidn"
+	salience 14
+	activation-group "generalValidation_Act"
+	agenda-group "generalValidation"
+	when
+		DeviceProfileType( MSISDN == null || MSISDN.length < 10)
+	then
+		System.out.println("Rule Error :::: Null or Invalid MSIDN received in request");
+		throw new BusinessException("generic.req.nomsisdn");
+end
+
+
+rule "ValidateImei"
+	salience 13
+	activation-group "generalValidation_Act"
+	agenda-group "generalValidation"
+	when
+		DeviceProfileType( IMEI  == null || IMEI.length < 16)
+	then
+		System.out.println("Rule Error :::: Null or Invalid IMEI received in request");
+		throw new BusinessException("generic.req.noimei");
+end
+
+
+rule "ValidateImsi"
+	salience 12
+	activation-group "generalValidation_Act"
+	agenda-group "generalValidation"
+	when
+		DeviceProfileType( IMSI  == null || IMSI.length < 16)
+	then
+		System.out.println("Rule Error :::: Null or Invalid IMSI received in request");
+		throw new BusinessException("generic.req.noimsi");
+end
+
+

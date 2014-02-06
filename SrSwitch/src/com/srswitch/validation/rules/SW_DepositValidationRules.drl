@@ -1,0 +1,33 @@
+package com.srswitch.validation.rules;
+
+global org.slf4j.Logger LOGGER;
+global java.lang.Boolean isDebugEnabled;
+
+import com.payment.model.SrPayRequest;
+import com.payment.model.CardDetailsType;
+import com.payment.model.DepositRequestDataType;
+import com.payment.model.TerminalDataType;
+import com.payment.model.TransactionDataType;
+
+global com.srswitch.dao.RoutingDAO routingDAO; 
+
+/* Validate DepositRequestDataType*/
+rule "new rule"
+	salience 20
+	activation-group "Deposit_Act"
+	agenda-group "5S7878"
+	when
+		SrPayRequest($depositRequestData : depositRequestData)
+		eval( true )	
+	then
+	if($depositRequestData == null){
+			LOGGER.error("Rule Error :::: Invalid Sales Request");
+			throw new BusinessException("sales.req.invalid");	
+		}
+		
+end
+
+
+
+
+

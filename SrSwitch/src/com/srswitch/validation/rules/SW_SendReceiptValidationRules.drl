@@ -1,0 +1,95 @@
+package com.srswitch.validation.rules;
+
+global org.slf4j.Logger LOGGER;
+
+import com.payment.model.SrPayRequest;
+import com.payment.model.SalesRequestDataType;
+import com.payment.model.TerminalDataType;
+import com.payment.model.CardDetailsType;
+import com.payment.model.TransactionDataType;
+
+import com.srswitch.exception.BusinessException;
+
+/*
+1. Mandatory Field Validation
+	-(RegRequestDataType - TerminalDataType)
+		MerchantCode
+		TerminalCode
+		MerchantName
+		StoreAdd
+		City
+		State
+		Zip
+	-(SalesRequestDataType - CardDetails - Card Num)
+	-(SalesRequestDataType - SalesTransactionDataType - TransactionDataType - Transaction Amount)
+	-																		  Date Time
+
+2. 	-(ReceiptRequestDataType - Approval Code) If Null :- Transaction Failed 
+	-(ReceiptRequestDataType - OtherDataType - Receipt Message)
+		
+3. Approval Code is not null
+	- (ReceiptRequestDataType - Approval Code) - Length (6)
+	- (SalesRequestDataType - CardDetails - CardExp)
+	- (SalesRequestDataType - SalesTransactionDataType - TransactionDataType - Ref No) - Length(12)
+     
+*/
+
+rule "ValidateCardNum&TransacAmt"
+	salience 30
+	agenda-group "347878"
+	when
+		$srPayRequest : SrPayRequest()
+		eval(true)
+	then
+		SalesRequestDataType salesRequestData = $srPayRequest.getSalesRequestData();
+		
+		if(salesRequestData == null 
+				|| salesRequestData.getSalesTransactionData() == null 
+				|| salesRequestData.getSalesTransactionData().getTransactionData() == null
+				|| salesRequestData.getCardDetails() == null){
+			LOGGER.error("Rule Error :::: Sales Request Data is null");
+			throw new BusinessException("generic.req.validation");	
+		}	
+		TransactionDataType transactionData = salesRequestData.getSalesTransactionData().getTransactionData();
+		
+		if(transactionData.getTransactionAmount() == null || transactionData.getDateTime() == 0 || salesRequestData.getCardDetails().getCardNumber() == null){
+			LOGGER.error("Rule Error :::: Card Number, Transaction Amount or Date Time received in request is null");
+			throw new BusinessException("generic.req.validation");
+		}
+end
+
+
+rule "ValidateTerminalData"
+	salience 30
+	agenda-group "347878"
+	when
+		$srPayRequest : SrPayRequest($terminalData : regRequestData.terminalData )
+		eval(true)
+	then
+		if($terminalData.getTerminalCode() == null || $terminalData.getMerchantCode() == null){
+			LOGGER.error("Rule Error :::: Null Terminal Code and Merchant Code received in request");
+			throw new BusinessException("generic.req.validation");
+		}
+		if($terminalData.getMerchantName() == null || $terminalData.getStoreAdd() == null || $terminalData.getState() == null){
+			LOGGER.error("Rule Error	 :::: Merchant Information received in request is not complete");
+			throw new BusinessException("generic.req.validation");
+		}
+end
+
+
+rule "ValidateApprovalCodeNotNull"
+	salience 30
+	agenda-group "347878"
+	when
+		$srPayRequest : SrPayRequest($receiptRequestData : receiptRequestDataType , $salesRequestData : salesRequestData )
+		eval($receiptRequestData.getApprovalCode() != null)
+	then
+		if($receiptRequestData.getApprovalCode().length() != 6){
+			LOGGER.error("Rule Error :::: Approval Code must be of 6 characters in length");
+			throw new BusinessException("generic.req.validation");
+		}
+end
+
+
+
+

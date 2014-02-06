@@ -1,0 +1,153 @@
+package com.srswitch.validation.rules;
+
+global org.slf4j.Logger LOGGER;
+global java.lang.Boolean isDebugEnabled;
+
+import com.payment.model.SrPayRequest;
+import com.payment.model.SalesRequestDataType;
+import com.payment.model.TerminalDataType;
+import com.payment.model.CardDetailsType;
+import com.payment.model.TransactionDataType;
+
+import com.srswitch.exception.BusinessException;
+
+rule "new rule"
+	salience 20
+	agenda-group "507878"
+	when
+		SrPayRequest($salesRequestData : salesRequestData)
+		eval(true)
+	then
+		System.out.println("Validating Sales Transaction Data " + $salesRequestData);
+		if($salesRequestData == null){
+			LOGGER.error("Rule Error :::: Invalid Sales Request");
+			throw new BusinessException("sales.req.invalid");	
+		}
+end
+
+
+rule "ValidateTransactionData"
+	salience 13
+	activation-group "sales_act" 
+	agenda-group "507878"
+	when
+		$srPayRequest : SrPayRequest($salesRequestData : salesRequestData)
+		eval(true)				
+	then
+		TransactionDataType transactionData = $salesRequestData.getSalesTransactionData().getTransactionData();
+		if(transactionData.getTransactionAmount() == 0.0){
+			LOGGER.error("Rule Error :::: Null or Invalid transAmount received in request");
+			throw new BusinessException("sales.req.noTransAmount");
+		}else if(transactionData.getDateTime() == 0){
+			LOGGER.error("Rule Error :::: No Date and Time received in request");
+			throw new BusinessException("sales.req.noTransDateTime");
+		}
+end
+
+
+rule "ValidateCardDetails"
+	salience 08
+	agenda-group "507878"
+	when
+		$srPayRequest : SrPayRequest($salesRequestData : salesRequestData)
+		eval(true)
+	then
+		CardDetailsType cardDetails= $salesRequestData.getCardDetails();
+		if(cardDetails == null){
+		LOGGER.error("Rule Error :::: Invalid Card Details received in request");
+		throw new BusinessException("sales.req.noCardDetails");
+		}else if(cardDetails.getNameOnCard() == null){
+		LOGGER.error("Rule Error :::: No Name on Card received in request");
+			throw new BusinessException("sales.req.noNameOnCard");
+		}else if(cardDetails.getCardNumber() == null){
+		LOGGER.error("Rule Error :::: No Card number received in request");
+			throw new BusinessException("sales.req.noCardNum");
+		}else if(cardDetails.getTrack1() == null){
+		LOGGER.error("Rule Error :::: No Track one Number received in request");
+			throw new BusinessException("sales.req.noTrack1Num");
+		}else if(cardDetails.getTrack2() == null){
+		LOGGER.error("Rule Error :::: No Track two Number received in request");
+			throw new BusinessException("sales.req.noTrack2Num");
+		}else if(cardDetails.getExpiryDate() == null){
+		LOGGER.error("Rule Error :::: No Expiry Date received in request");
+			throw new BusinessException("sales.req.noExpDate");
+		
+		}
+end
+
+
+
+/*
+"nameOnCard":"N. Malik",
+rule "ValidateTransactionData"
+	salience 05
+	activation-group "sales_act" 
+	agenda-group "200"
+	when
+		$srPayRequest : SrPayRequest($salesRequestData : salesRequestData)
+		eval(true)				
+	then
+		TransactionDataType transactionData = $salesRequestData.getSalesTransactionData().getTransactionData();
+		if(transactionData == 0.0){
+			System.out.println("Rule Error :::: Null or Invalid transAmount received in request");
+			throw new BusinessException("sales.req.noTransAmount");
+		}else if(transactionData.getDateTime() == null){
+			throw new BusinessException("sales.req.noTransDateTime");
+		}else if(transactionData.getMerchantCode() == null){
+			throw new BusinessException("sales.req.noMerchantCode");
+		}else if(transactionData.getTerminalCode() == null){
+			throw new BusinessException("sales.req.noTerminalCode");
+end
+
+*/
+
+
+
+/*
+rule "Validate_Merchant_code"
+	salience 07
+	activation-group "sales_act" 
+	agenda-group "200"
+	when
+		TransactionDataType( merchantCode == null )
+	then
+		System.out.println("Rule Error :::: Invalid MerchantCode received in request");
+		throw new BusinessException("sales.req.merchantCode");
+end
+
+rule "Validate_Terminal_code"
+	salience 06
+	activation-group "sales_act" 
+	agenda-group "200"
+	when
+		TransactionDataType( terminalCode == null )
+	then
+		System.out.println("Rule Error :::: Invalid TerminalCode received in request");
+		throw new BusinessException("sales.req.terminalCode");
+end
+
+
+rule "Validate_Expiry_Date"
+	salience 05
+	activation-group "sales_act" 
+	agenda-group "200"
+	when
+		CardDetailsType( expiryDate == null )	
+	then
+		System.out.println("Rule Error :::: Invalid Expiry Date received in request");	
+		throw new BusinessException("sales.req.noExpDate");
+end
+
+
+rule "Validate_address"
+	salience 04
+	activation-group "sales_act" 
+	agenda-group "200"
+	when
+		TerminalDataType( storeAdd == null  )
+	then
+		System.out.println("Rule Error :::: Invalid Store Add received in request");
+		throw new BusinessException("sales.req.noStoreAddress");
+end
+
+*/
